@@ -6,6 +6,7 @@
   <home-images />
   <home-content />
   <home-button />
+  <home-element-plus />
   <hr />
   <css-modules-button />
   <hr />
@@ -27,13 +28,5 @@ export default {  components: {
 <style scoped>
 img {
   width: 200px;
-}
-.h1 {
-  border: 5px solid red !important;
-  padding: 1px !important;
-}
-.section {
-  border: 1px solid black;
-  padding: 10px;
 }
 </style>
