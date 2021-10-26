@@ -3,7 +3,9 @@
     "home",
     "common-lib",
     "layout",
-    "css-modules"
+    "css-modules",
+    "router-host",
+    "router-remote"
   ],
   "version": "1.0.0",
   "npmClient": "yarn",

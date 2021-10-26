@@ -6,14 +6,16 @@
     "home",
     "common-lib",
     "layout",
-    "css-modules"
+    "css-modules",
+    "router-host",
+    "router-remote"
   ],
   "scripts": {
     "start": "lerna run start",
     "build": "lerna run build --loglevel=error",
     "serve": "lerna run serve --parallel --loglevel=silent",
     "restart": "lerna run stop & lerna run build & lerna run serve --parallel --loglevel=silent & ",
-    "stop": "kill-port --port 5000,5001,5002,5003",
+    "stop": "kill-port --port 5000,5001,5002,5003,5004,5005",
     "clean": "lerna run clean"
   },
   "devDependencies": {

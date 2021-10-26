@@ -14,14 +14,15 @@ export default defineConfig({
         './Button': './src/components/Button.js',
         './Images': './src/components/Images.vue',
         './UnusedButton': './src/components/UnusedButton.vue',
+        './ElementPlus': './src/components/ElementPlus.vue',
       },
-      shared: ["vue","vuex"]
+      shared: ["vue","vuex","element-plus"]
     })
   ],
   build: {
     assetsInlineLimit: 40960,
     target:'es2020',
-    minify: true,
+    minify: false,
     cssCodeSplit: false,
     rollupOptions: {
       output: {

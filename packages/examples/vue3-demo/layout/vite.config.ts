@@ -1,10 +1,10 @@
-import { defineConfig } from "vite";
+import {defineConfig} from "vite";
 import vue from "@vitejs/plugin-vue";
 import federation from "@originjs/vite-plugin-federation";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  server:{
+  server: {
     // host: "192.168.56.1",
     // port: 5100
   },
@@ -17,9 +17,9 @@ export default defineConfig({
       remotes: {
         home: "http://localhost:5001/remoteEntry.js",
         "common-lib": "http://localhost:5002/remoteEntry.js",
-        "css-modules":"http://localhost:5003/remoteEntry.js"
+        "css-modules": "http://localhost:5003/remoteEntry.js"
       },
-      shared: ["vue","vuex"]
+      shared: ["vue", "vuex", "element-plus"]
     })
   ],
   build: {

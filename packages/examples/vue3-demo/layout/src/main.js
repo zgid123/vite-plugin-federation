@@ -1,6 +1,8 @@
-import { createApp, defineAsyncComponent } from "vue";
+import {createApp, defineAsyncComponent} from "vue";
 import store from './store';
 import Layout from "./Layout.vue";
+import "element-plus"
+import 'element-plus/dist/index.css'
 
 const HomeContent = defineAsyncComponent(() => import("home/Content"));
 const HomeButton = defineAsyncComponent(() => import("home/Button"));

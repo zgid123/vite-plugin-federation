@@ -6,6 +6,7 @@
     <Content />
     <Button />
     <UnusedButton />
+    <ElementPlus />
   </div>
 </template>
 
@@ -15,13 +16,15 @@ import Content from "./components/Content.vue";
 import Button from "./components/Button.js";
 import UnusedButton from "./components/UnusedButton.vue";
 import Images from "./components/Images.vue";
+import ElementPlus from "./components/ElementPlus.vue";
 
 export default {
   components: {
     Content,
     Button,
     UnusedButton,
-    Images
+    Images,
+    ElementPlus
   },
   setup() {
     const count = ref(0);
