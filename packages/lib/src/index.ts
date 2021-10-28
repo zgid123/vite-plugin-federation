@@ -10,6 +10,7 @@ import {
   builderInfo
 } from './public'
 import { PluginHooks } from '../types/pluginHooks'
+import { ModuleInfo } from 'rollup'
 
 export default function federation(
   options: VitePluginFederationOptions
@@ -118,6 +119,11 @@ export default function federation(
         }
       }
       return code
+    },
+    moduleParsed(moduleInfo: ModuleInfo): void {
+      for (const pluginHook of pluginList) {
+        pluginHook.moduleParsed?.call(this, moduleInfo)
+      }
     },
 
     outputOptions(outputOptions) {

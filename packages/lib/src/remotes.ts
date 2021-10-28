@@ -10,8 +10,14 @@ import MagicString from 'magic-string'
 import { AcornNode, TransformPluginContext } from 'rollup'
 import { PluginHooks } from '../types/pluginHooks'
 import { ViteDevServer } from '../types/viteDevServer'
-import { parseOptions, getModuleMarker, normalizePath } from './utils'
+import {
+  parseOptions,
+  getModuleMarker,
+  normalizePath,
+  removeNonLetter
+} from './utils'
 import { IMPORT_ALIAS, parsedOptions } from './public'
+import { provideShared } from './shared'
 
 export let providedRemotes
 
@@ -147,7 +153,7 @@ export default {
         if (options.mode !== 'development') {
           return code.replace(
             getModuleMarker('shareScope'),
-            sharedScopeCode(parsedOptions.shared).join(',')
+            sharedScopeCode.call(this, parsedOptions.shared).join(',')
           )
         } else {
           return code.replace(
@@ -155,6 +161,28 @@ export default {
             devSharedScopeCode(parsedOptions.devShared, browserHash).join(',')
           )
         }
+      }
+      if (id === '\0virtual:__rf_fn__import') {
+        for (const sharedInfo of provideShared) {
+          if (!sharedInfo[1].id) {
+            sharedInfo[1].id = (await this.resolve(id))?.id
+          }
+        }
+        const moduleMapCode = provideShared
+          .map(
+            (sharedInfo) =>
+              `'${sharedInfo[0]}':{get:()=>import('${
+                sharedInfo[0]
+              }'),asMap:${getModuleMarker(
+                'asMap',
+                removeNonLetter(sharedInfo[0])
+              )}}`
+          )
+          .join(',')
+        return code.replace(
+          getModuleMarker('moduleMap', 'var'),
+          `{${moduleMapCode}}`
+        )
       }
       if (remotes.length === 0 || id.includes('node_modules')) {
         return null
@@ -210,7 +238,10 @@ export default {
     }
   }
 
-  function sharedScopeCode(shared: (string | ConfigTypeSet)[]): string[] {
+  function sharedScopeCode(
+    this: TransformPluginContext,
+    shared: (string | ConfigTypeSet)[]
+  ): string[] {
     const res: string[] = []
     const displayField = new Set<string>()
     displayField.add('version')
@@ -225,10 +256,7 @@ export default {
             if (displayField.has(key))
               str += `${key}:${JSON.stringify(value)}, \n`
           })
-          str += `get: ()=> ${IMPORT_ALIAS}('${getModuleMarker(
-            `\${${sharedName}}`,
-            'shareScope'
-          )}')`
+          str += `get: ()=> import ('${obj.id}')`
           res.push(`'${sharedName}':{${str}}`)
         }
       })
