@@ -20,9 +20,12 @@ export default defineConfig({
             filename: 'remoteEntry.js',
             exposes: {
                 './ElementPlus': './src/components/ElementPlus.vue',
-                './ElSubMenuDashboard': './src/components/ElSubMenuDashboard.vue'
+                './ElSubMenuDashboard': './src/components/ElSubMenuDashboard.vue',
+                './Login': './src/views/Login.vue',
+                './Footer': './src/components/Footer.vue',
+                './Header': './src/components/Header.vue'
             },
-            shared: ["vue", "element-plus"]
+            shared: ["vue", "vue-router", "element-plus"]
         })
     ],
     build: {

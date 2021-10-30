@@ -30,7 +30,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         format: 'es',
-        minifyInternalExports: false
+        minifyInternalExports: false,
+        // preserveModules: true
       }
     }
   }

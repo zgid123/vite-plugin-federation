@@ -12,16 +12,18 @@ export default defineConfig({
             remotes: {
                 "router-remote": "http://localhost:5005/remoteEntry.js",
             },
-            shared: ["vue", "element-plus"]
+            shared: ["vue", "vue-router", "element-plus"]
         })
     ],
-    optimizeDeps:{
-        include: ["element-plus"]
-    },
+    // optimizeDeps:{
+    //     include: ["element-plus"]
+    // },
+
     // 解决 const Home = {template: '<p>Home</p>'} 类组件无法在 vue-router 中显示的问题
     resolve:{
         alias:{
-            vue : 'vue/dist/vue.esm-bundler.js'
+            vue : 'vue/dist/vue.esm-bundler.js',
+            'vue-router': 'vue-router/dist/vue-router.esm-bundler.js'
         }
     },
     build: {
@@ -31,8 +33,7 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 minifyInternalExports: false
-            },
-            treeshake: false
+            }
         }
     },
 });

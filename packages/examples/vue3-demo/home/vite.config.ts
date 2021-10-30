@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import {defineConfig} from 'vite'
 import vue from '@vitejs/plugin-vue'
 import federation from "@originjs/vite-plugin-federation";
 
@@ -26,7 +26,8 @@ export default defineConfig({
     cssCodeSplit: false,
     rollupOptions: {
       output: {
-        minifyInternalExports: false
+        minifyInternalExports: false,
+        // preserveModules: true
       }
     }
   }

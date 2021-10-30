@@ -1,4 +1,7 @@
 import {createRouter, createWebHashHistory} from 'vue-router'
+import {defineAsyncComponent} from 'vue'
+
+const Home = {template: '<p>Home</p>'}
 
 const router = createRouter({
     history: createWebHashHistory(), // hash模式：createWebHashHistory，history模式：createWebHistory
@@ -8,20 +11,17 @@ const router = createRouter({
             redirect: '/introduce'
         },
         {
-            path: '/introduce',
-            name: 'introduce',
-            component: () => import(/* webpackChunkName: "introduce" */ '../views/Introduce.vue')
-        },
-        {
-            path: '/add',
-            name: 'add',
-            component: () => import(/* webpackChunkName: "add" */ '../views/AddGood.vue')
-        },
-        {
-            path: '/account',
-            name: 'account',
-            component: () => import(/* webpackChunkName: "account" */ '../views/Account.vue')
+            path: '/login',
+            name: 'Login',
+            // component: () => import(/* webpackChunkName: "account" */ '../views/Login.vue')
+            component: defineAsyncComponent(() => import("router-remote/Login"))
         }
+        // ,
+        // {
+        //     path: '/account',
+        //     name: 'account',
+        //     component: () => import(/* webpackChunkName: "account" */ '../views/Account.vue')
+        // }
     ]
 })
 
