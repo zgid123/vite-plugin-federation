@@ -15,6 +15,11 @@ const router = createRouter({
             name: 'Login',
             // component: () => import(/* webpackChunkName: "account" */ '../views/Login.vue')
             component: defineAsyncComponent(() => import("router-remote/Login"))
+        },
+        {
+            path: '/shopping',
+            name: 'shopping',
+            component: () => import(/* webpackChunkName: "account" */ '../views/Shopping.vue')
         }
         // ,
         // {

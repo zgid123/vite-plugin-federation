@@ -23,7 +23,9 @@ export default defineConfig({
                 './ElSubMenuDashboard': './src/components/ElSubMenuDashboard.vue',
                 './Login': './src/views/Login.vue',
                 './Footer': './src/components/Footer.vue',
-                './Header': './src/components/Header.vue'
+                './Header': './src/components/Header.vue',
+                './ProductList': './src/components/ProductList.vue',
+                './ShoppingCart': './src/components/ShoppingCart.vue'
             },
             shared: ["vue", "vue-router", "element-plus"]
         })

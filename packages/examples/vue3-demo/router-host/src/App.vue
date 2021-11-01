@@ -20,6 +20,14 @@
             <el-menu-item index="/home"><i class="el-icon-s-home"/>Home</el-menu-item>
           </el-menu-item-group>
           <router-remote-el-sub-menu-dashboard/>
+          <el-sub-menu index="3">
+            <template #title>
+              <span>功能展示</span>
+            </template>
+            <el-menu-item-group>
+              <el-menu-item index="/shopping"><i class="el-icon-shopping-bag-1"/>购物测试</el-menu-item>
+            </el-menu-item-group>
+          </el-sub-menu>
           <router-host-el-sub-menu-system-management/>
         </el-menu>
       </el-aside>
@@ -55,7 +63,7 @@
 <script>
 import {defineAsyncComponent, onUnmounted, reactive} from 'vue'
 import {useRouter} from 'vue-router'
-import {ElAside, ElContainer, ElMenu, ElMenuItem, ElMenuItemGroup} from 'element-plus'
+import {ElAside, ElContainer, ElMenu, ElMenuItem, ElMenuItemGroup, ElSubMenu} from 'element-plus'
 import ElSubMenuSystemManagement from './components/ElSubMenuSystemManagement.vue'
 import * as api from "./utils/hostUtils.js"
 
@@ -69,7 +77,7 @@ const Login = import("./views/Login.vue");
 
 export default {
   components: {
-    ElContainer, ElMenu, ElAside, ElMenuItemGroup, ElMenuItem,
+    ElContainer, ElMenu, ElAside, ElMenuItemGroup, ElMenuItem, ElSubMenu,
     "router-remote-el-sub-menu-dashboard": RouterRemoteElSubMenuDashboard,
     // "login": Login,
     "login": RouterRemoteLogin,

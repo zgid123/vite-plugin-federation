@@ -15,6 +15,7 @@ This example demos consumption of federated modules from a vite bundle. `layout`
 
 ### Advanced Demo
 We have added a Demo to show the combination of `Vite+Vue+Vuex+Vue Router+Element Plus`.
+We ported part of the Vuex example from [vuex's official example](https://github.com/vuejs/vuex/tree/4.0/examples/classic/shopping-cart) as a functional verification.
 ```bash
 cd packages/examples/vue3-demo/router-host
 yarn restart
