@@ -2,10 +2,10 @@
   <el-card class="account-container">
     <el-form :model="nameForm" :rules="rules" ref="nameRef" label-width="80px" label-position="right" class="demo-ruleForm">
       <el-form-item label="登录名：" prop="loginName">
-        <el-input style="width: 200px" v-model="nameForm.loginName"></el-input>
+        <el-input style="width: 200px" v-model="nameForm.loginName" disabled></el-input>
       </el-form-item>
       <el-form-item label="昵称：" prop="nickName">
-        <el-input style="width: 200px" v-model="nameForm.nickName"></el-input>
+        <el-input style="width: 200px" v-model="nameForm.nickName" clearable></el-input>
       </el-form-item>
       <el-form-item>
         <el-button type="danger" @click="submitName">确认修改</el-button>
@@ -15,10 +15,10 @@
   <el-card class="account-container">
     <el-form :model="passForm" :rules="rules" ref="passRef" label-width="80px" label-position="right" class="demo-ruleForm">
       <el-form-item label="原密码：" prop="oldpass">
-        <el-input style="width: 200px" v-model="passForm.oldpass"></el-input>
+        <el-input style="width: 200px" v-model="passForm.oldpass" show-password clearable></el-input>
       </el-form-item>
       <el-form-item label="新密码：" prop="newpass">
-        <el-input style="width: 200px" v-model="passForm.newpass"></el-input>
+        <el-input style="width: 200px" v-model="passForm.newpass" show-password clearable></el-input>
       </el-form-item>
       <el-form-item>
         <el-button type="danger" @click="submitPass">确认修改</el-button>
@@ -28,12 +28,14 @@
 </template>
 
 <script>
-import { onMounted, reactive, ref, toRefs } from 'vue'
-import axios from '@/utils/axios'
-import { ElMessage } from 'element-plus'
-import md5 from 'js-md5'
+import {onMounted, reactive, ref, toRefs} from 'vue'
+
+import * as api from "../utils/hostUtils.js"
+import {ElButton, ElCard, ElForm, ElFormItem, ElInput, ElMessage} from 'element-plus'
+
 export default {
   name: 'Account',
+  components: {ElButton, ElCard, ElForm, ElFormItem, ElInput, ElMessage},
   setup() {
     const nameRef = ref(null)
     const passRef = ref(null)
@@ -63,21 +65,22 @@ export default {
       },
     })
     onMounted(() => {
-      axios.get('/adminUser/profile').then(res => {
-        state.user = res
-        state.nameForm.loginName = res.loginUserName
-        state.nameForm.nickName = res.nickName
-      })
+      const res = api.getUserInfo()
+      state.user = res
+      state.nameForm.loginName = res.loginUserName
+      state.nameForm.nickName = res.nickName
+
     })
     const submitName = () => {
       nameRef.value.validate((vaild) => {
         if (vaild) {
-          axios.put('/adminUser/name', {
-            loginUserName: state.nameForm.loginName,
-            nickName: state.nameForm.nickName
-          }).then(() => {
-            ElMessage.success('修改成功')
-            window.location.reload()
+          api.changeNickName(state.nameForm.nickName).then(res => {
+            if (res) {
+              ElMessage.success('修改成功')
+              window.location.reload()
+            } else {
+              ElMessage.error('修改失败')
+            }
           })
         }
       })
@@ -85,13 +88,13 @@ export default {
     const submitPass = () => {
       passRef.value.validate((vaild) => {
         if (vaild) {
-          axios.put('/adminUser/password', {
-            originalPassword: md5(state.passForm.oldpass),
-            newPassword: md5(state.passForm.newpass)
-          }).then(() => {
+          const res = api.changePassword(state.passForm.oldpass, state.passForm.newpass)
+          if (res) {
             ElMessage.success('修改成功')
             window.location.reload()
-          })
+          } else {
+            ElMessage.error('修改失败')
+          }
         }
       })
     }

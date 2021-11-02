@@ -1,4 +1,5 @@
-const users =
+const projectName = 'host'
+const globalUsers =
     [{
         loginUserName: "Admin",
         nickName: "Tom",
@@ -14,15 +15,25 @@ const users =
     }
     ]
 
-export const getUserInfo = (token) => {
-    const result = users.find(user => user.token === token)
-    console.log(`[method]getUserInfo token:${token}, result:${result}`)
+export const getUserInfo = () => {
+    const users = localGet('users')
+    if (users === null) {
+        localSet('users', globalUsers)
+    }
+    const token = localGet('token')
+    const result = localGet("users").find(user => user.token === token)
+    console.log(`[${projectName}]getUserInfo token:${token}, result:${result}`)
+    console.log(result)
     return result;
 }
 
 export const login = (loginUserName, password) => {
-    const result = users.find(user => (user.loginUserName === loginUserName && user.password === password))
-    console.log(`[method]login loginUserName:${loginUserName}, password:${password}, result:${result}`)
+    const users = localGet('users')
+    if (users === null) {
+        localSet('users', globalUsers)
+    }
+    const result = localGet('users').find(user => (user.loginUserName === loginUserName && user.password === password))
+    console.log(`[${projectName}]login loginUserName:${loginUserName}, password:${password}, result:${result}`)
     return result;
 }
 
@@ -36,13 +47,51 @@ export function localGet(key) {
 }
 
 export function localSet(key, value) {
-    console.log(`[method]getUserInfo token:${key}, token:${value}`)
+    console.log(`[${projectName}]getUserInfo token:${key}, token:${value}`)
     window.localStorage.setItem(key, JSON.stringify(value))
-    console.log(window.localStorage)
 }
 
 export function localRemove(key) {
     window.localStorage.removeItem(key)
+}
+
+export function changeNickName(nickName) {
+    console.log(`[${projectName}]getUserInfo nickName:${nickName}`)
+    let result = getUserInfo();
+    result.nickName = nickName;
+    if (updateUsers(result)) {
+        return true
+    }
+    return false
+}
+
+export function changePassword(oldPassword, newPassword) {
+    console.log(`[${projectName}]changePassword`)
+    let result = getUserInfo();
+    result.password = newPassword
+    if (updateUsers(result)) {
+        return true
+    }
+    return false
+}
+
+function updateUsers(curUser) {
+    console.log(`[${projectName}]updateUsers curUser:${curUser}`)
+    const users = localGet('users')
+    if (users === null) {
+        return false;
+    } else {
+        users.map(user => {
+            if (user.token === curUser.token) {
+                for (const key in user) {
+                    user[key] = curUser[key]
+                }
+            }
+            return user;
+        });
+        localSet('users', users)
+    }
+    return true;
 }
 
 export const pathMap = {

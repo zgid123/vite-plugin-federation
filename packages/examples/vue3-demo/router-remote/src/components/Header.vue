@@ -61,7 +61,7 @@ export default {
       }
     })
     const getUserInfo = () => {
-      const userInfo = api.getUserInfo(api.localGet('token'))
+      const userInfo = api.getUserInfo()
       state.userInfo = userInfo
     }
     const logout = () => {

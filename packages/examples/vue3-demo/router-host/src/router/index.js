@@ -18,15 +18,15 @@ const router = createRouter({
         },
         {
             path: '/shopping',
-            name: 'shopping',
-            component: () => import(/* webpackChunkName: "account" */ '../views/Shopping.vue')
+            name: 'Shopping',
+            component: () => import(/* webpackChunkName: "shopping" */ '../views/Shopping.vue')
         }
-        // ,
-        // {
-        //     path: '/account',
-        //     name: 'account',
-        //     component: () => import(/* webpackChunkName: "account" */ '../views/Account.vue')
-        // }
+        ,
+        {
+            path: '/account',
+            name: 'Account',
+            component: () => import(/* webpackChunkName: "account" */ '../views/Account.vue')
+        }
     ]
 })
 
