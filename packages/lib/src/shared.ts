@@ -1,10 +1,5 @@
 import { PluginHooks } from '../types/pluginHooks'
-import {
-  findDependencies,
-  getModuleMarker,
-  parseOptions,
-  removeNonLetter
-} from './utils'
+import { findDependencies, getModuleMarker, parseOptions } from './utils'
 import {
   builderInfo,
   EXPOSES_CHUNK_SET,
@@ -16,9 +11,8 @@ import {
   SharedRuntimeInfo,
   VitePluginFederationOptions
 } from 'types'
-import { OutputAsset, OutputChunk, RenderedChunk } from 'rollup'
-import MagicString from 'magic-string'
 import { walk } from 'estree-walker'
+import MagicString from 'magic-string'
 import * as path from 'path'
 
 export let provideShared: (string | (ConfigTypeSet & SharedRuntimeInfo))[]
@@ -52,66 +46,45 @@ export function sharedPlugin(
     virtualFile: {
       __rf_fn__import: `
       const moduleMap= ${getModuleMarker('moduleMap', 'var')}
-      const sharedInfo = ${getModuleMarker('sharedInfo', 'var')}
       const moduleCache = Object.create(null);
       async function importShared(name,shareScope = 'default') {
         return moduleCache[name] ? new Promise((r) => r(moduleCache[name])) : getProviderSharedModule(name, shareScope);
+      }
+      async function __federation_import(name){
+        return import(name);
       }
       async function getProviderSharedModule(name,shareScope) {
         let module = null;
         if (globalThis?.__rf_var__shared?.[shareScope]?.[name]) {
           const dep = globalThis.__rf_var__shared[shareScope][name];
-          if (sharedInfo[name]?.requiredVersion) {
+          if (moduleMap[name]?.requiredVersion) {
             // judge version satisfy
             const satisfies = await import('semver/functions/satisfies');
             const fn = satisfies.default||satisfies
-            if (fn(dep.version, sharedInfo[name].requiredVersion)) {
+            if (fn(dep.version, moduleMap[name].requiredVersion)) {
                module = await dep.get();
             } else {
-              console.log(\`provider support \${name}(\${dep.version}) is not satisfied requiredVersion(\${sharedInfo[name].requiredVersion})\`)
+              console.log(\`provider support \${name}(\${dep.version}) is not satisfied requiredVersion(\${moduleMap[name].requiredVersion})\`)
             }
           } else {
             module = await dep.get(); 
           }
         }
         if(module){
-          if(moduleMap[name]?.asMap){
-            moduleCache[name] = wrapProxy(name, module);
-          }else {
-            moduleCache[name] = module;
-          }
-          return moduleCache[name];
+          moduleCache[name] = module;
+          return module;
         }else{
           return getConsumerSharedModule(name, shareScope);
         }
       }
       async function getConsumerSharedModule(name , shareScope) {
-        if (sharedInfo[name]?.import) {
+        if (moduleMap[name]?.import) {
           const module = await moduleMap[name].get()
-          if(moduleMap[name]?.asMap){
-            moduleCache[name] = wrapProxy(name,module)
-          }else{
-            moduleCache[name] = module;
-          }
-          return moduleCache[name]
+          moduleCache[name] = module;
+          return module;
         } else {
           console.error(\`consumer config import=false,so cant use callback shared module\`)
         }
-      }
-      function wrapProxy(name,  module) {
-        return new Proxy(module, {
-          get(target, prop, receiver) {
-            console.log(prop)
-            if (Reflect.has(target, prop)) {
-              return target[prop];
-            } else {
-              const asMap = moduleMap[name]?.asMap;
-              if (asMap?.[prop]) {
-                return target[asMap[prop]];
-              }
-            }
-          }
-        })
       }
       export {importShared};
       `
@@ -119,6 +92,7 @@ export function sharedPlugin(
     options(inputOptions) {
       isHost = !!parsedOptions.remotes.length
       isRemote = !!parsedOptions.exposes.length
+
       if (sharedNames.size) {
         // remove item which is both in external and shared
         inputOptions.external = (inputOptions.external as [])?.filter(
@@ -126,11 +100,10 @@ export function sharedPlugin(
             return !sharedNames.has(item)
           }
         )
-        // add shared content into input
-        sharedNames.forEach((shareName) => {
-          inputOptions.input![`${getModuleMarker(shareName, 'input')}`] =
-            shareName
-        })
+        // sharedNames.forEach((shareName) => {
+        //     inputOptions.input![`${getModuleMarker(shareName, 'input')}`] =
+        //         shareName
+        // })
       }
       return inputOptions
     },
@@ -163,6 +136,13 @@ export function sharedPlugin(
           id: '__rf_fn__import',
           preserveSignature: 'strict'
         })
+      }
+    },
+
+    async buildEnd() {
+      for (const sharedInfo of provideShared) {
+        const resolved = await this.resolve(sharedInfo[0])
+        sharedInfo[1].id = resolved?.id
       }
     },
 
@@ -228,7 +208,6 @@ export function sharedPlugin(
         const bIndex = priority.findIndex((value) => value === b[0])
         return aIndex - bIndex
       })
-
       // only active when manualChunks is function,array not to solve
       if (typeof outputOption.manualChunks === 'function') {
         outputOption.manualChunks = new Proxy(outputOption.manualChunks, {
@@ -244,152 +223,87 @@ export function sharedPlugin(
       }
       return outputOption
     },
-
     generateBundle: function (options, bundle) {
-      // find the shared and __rf_fn_import chunk
-      let importFnChunk: RenderedChunk | undefined
       for (const file in bundle) {
         const chunk = bundle[file]
         if (chunk.type === 'chunk') {
-          if (chunk.name.startsWith('__rf_input_')) {
-            const sharedName = chunk.name.match(/(?<=__rf_input__).*/)?.[0]
-            const sharedProp = provideShared.find(
-              (item) => sharedName === item[0]
-            )?.[1]
-            if (!chunk.modules || !Reflect.ownKeys(chunk.modules).length) {
-              const asMap = Object.create(null)
-              let bindings: (string | string[])[] = []
-              Object.entries(chunk.importedBindings).forEach(([, value]) => {
-                bindings = bindings.concat(value)
-              })
-              for (let i = 0; i < chunk.exports.length; i++) {
-                if (chunk.exports[i] != bindings[i]) {
-                  asMap[bindings[i] as string] = chunk.exports[i]
-                }
-              }
-              sharedProp.asMap = asMap
-              sharedProp.fileName = path.basename(chunk.imports[0])
-            } else {
-              sharedProp.fileName = path.basename(chunk.fileName)
-            }
-            sharedProp.chunk = chunk
-          } else if (chunk.name === getModuleMarker('import', 'fn')) {
-            importFnChunk = chunk
+          const find = provideShared.find(
+            (sharedInfo) => sharedInfo[0] === chunk.name
+          )
+          if (find) {
+            find[1].fileName = chunk.fileName
+            find[1].chunk = chunk
           }
         }
       }
-
-      if (importFnChunk && EXPOSES_CHUNK_SET.size && provideShared.length) {
-        provideShared.forEach(
-          (sharedInfo) =>
-            (importFnChunk!.code = importFnChunk?.code?.replace(
-              getModuleMarker('asMap', removeNonLetter(sharedInfo[0])),
-              JSON.stringify(sharedInfo[1].asMap)
-            ))
+      if (EXPOSES_CHUNK_SET.size && provideShared.length) {
+        const sharedChunks = provideShared.map(
+          (sharedInfo) => sharedInfo[1].chunk
         )
-
-        const obj = Object.create(null)
-        // only need little field
-        provideShared.forEach(
-          (value) =>
-            (obj[value[0]] = {
-              import: value[1].import,
-              requiredVersion: value[1].requiredVersion
-            })
+        const needShardImportChunks = [...EXPOSES_CHUNK_SET].concat(
+          sharedChunks
         )
-
-        importFnChunk.code = importFnChunk.code?.replace(
-          getModuleMarker('sharedInfo', 'var'),
-          JSON.stringify(obj)
-        )
-
-        const needDynamicImportChunks = new Set(
-          [...provideShared].map((sharedInfo) => sharedInfo[1].chunk)
-        )
-        EXPOSES_CHUNK_SET.forEach((exposeChunk) =>
-          needDynamicImportChunks.add(exposeChunk)
-        )
-        needDynamicImportChunks.forEach((exposeChunk) => {
-          findNeedChunks(exposeChunk)
-        })
-
-        // eslint-disable-next-line no-inner-declarations
-        function findNeedChunks(
-          chunk: OutputChunk | OutputAsset | RenderedChunk
-        ): void {
-          if (chunk?.type === 'chunk') {
-            chunk.imports?.forEach((importTarget) => {
-              if (!needDynamicImportChunks.has(bundle[importTarget])) {
-                findNeedChunks(bundle[importTarget])
+        const names = provideShared.map((sharedInfo) => sharedInfo[1].fileName)
+        for (const chunk of needShardImportChunks) {
+          const flag = chunk?.imports.some((importName) =>
+            names.some(
+              (item) => path.basename(item) === path.basename(importName)
+            )
+          )
+          if (flag && chunk.code) {
+            const ast = this.parse(chunk.code)
+            const magicString = new MagicString(chunk.code)
+            let modify = false
+            walk(ast, {
+              enter(node: any) {
+                if (
+                  node.type === 'ImportDeclaration' &&
+                  names.some((item) =>
+                    item.endsWith(path.basename(node.source.value))
+                  )
+                ) {
+                  const find = provideShared.find((sharedInfo) =>
+                    sharedInfo[1].fileName.endsWith(
+                      path.basename(node.source.value)
+                    )
+                  )
+                  const declaration: (string | never)[] = []
+                  node.specifiers?.forEach((specify) => {
+                    declaration.push(
+                      `${
+                        specify.imported?.name
+                          ? `${
+                              specify.imported.name === specify.local.name
+                                ? specify.local.name
+                                : `${specify.imported.name}:${specify.local.name}`
+                            }`
+                          : `default:${specify.local.name}`
+                      }`
+                    )
+                  })
+                  if (declaration.length) {
+                    magicString.overwrite(
+                      node.start,
+                      node.end,
+                      `const {${declaration.join(',')}} = await importShared('${
+                        find?.[0]
+                      }')`
+                    )
+                    modify = true
+                  }
+                }
               }
             })
-            if (!needDynamicImportChunks.has(chunk)) {
-              needDynamicImportChunks.add(chunk)
+            if (modify) {
+              magicString.prepend(
+                `import {importShared} from './__rf_fn__import.js'\n`
+              )
+              chunk.code = magicString.toString()
             }
           }
         }
-
-        needDynamicImportChunks.forEach((chunk) => {
-          if (chunk.code) {
-            let lastImport: any = null
-            const ast = this.parse(chunk.code)
-            const importMap = new Map()
-            const magicString = new MagicString(chunk.code)
-            walk(ast, {
-              enter(node: any) {
-                if (node.type === 'ImportDeclaration') {
-                  const fileName = path.basename(node.source.value)
-                  const sharedItem = provideShared.find(
-                    (arr) => arr[1].fileName === fileName
-                  )
-                  const sharedName = sharedItem?.[0]
-                  if (sharedName) {
-                    importMap.set(sharedName, {
-                      source: node.source.value,
-                      specifiers: node.specifiers,
-                      sharedItem: sharedItem?.[1]
-                    })
-                    //  replace import with empty
-                    magicString.overwrite(node.start, node.end, '')
-                  }
-                  // record the last import to insert dynamic import code
-                  lastImport = node
-                }
-              }
-            })
-            const fn_import = getModuleMarker('import', 'fn')
-            //  generate variable declare
-            const PLACEHOLDER_VAR = [...importMap.entries()]
-              .map(([key, value]) => {
-                let str = ''
-                value.specifiers?.forEach((space) => {
-                  str += `,${
-                    space.imported.name === space.local.name
-                      ? ''
-                      : `${space.imported.name}:`
-                  }${space.local.name}`
-                })
-                const sharedScope = value.sharedItem.shareScope
-                if (str) {
-                  return `const {${str.substring(
-                    1
-                  )}} = await importShared('${key}'${
-                    sharedScope === 'default' ? '' : `,'${sharedScope}'`
-                  });`
-                }
-              })
-              .join('')
-            if (PLACEHOLDER_VAR) {
-              //  append code after lastImport
-              magicString.prepend(
-                `\nimport {importShared} from './${fn_import}.js'\n`
-              )
-              magicString.appendRight(lastImport.end, PLACEHOLDER_VAR)
-            }
-            chunk.code = magicString.toString()
-          }
-        })
       }
     }
   }
+  // }
 }

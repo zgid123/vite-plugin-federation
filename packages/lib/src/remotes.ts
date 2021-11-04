@@ -1,4 +1,4 @@
-import { UserConfig, ConfigEnv } from 'vite'
+import { ConfigEnv, UserConfig } from 'vite'
 import {
   ConfigTypeSet,
   RemotesConfig,
@@ -10,14 +10,10 @@ import MagicString from 'magic-string'
 import { AcornNode, TransformPluginContext } from 'rollup'
 import { PluginHooks } from '../types/pluginHooks'
 import { ViteDevServer } from '../types/viteDevServer'
-import {
-  parseOptions,
-  getModuleMarker,
-  normalizePath,
-  removeNonLetter
-} from './utils'
-import { IMPORT_ALIAS, parsedOptions } from './public'
+import { getModuleMarker, normalizePath, parseOptions } from './utils'
+import { builderInfo, IMPORT_ALIAS, parsedOptions } from './public'
 import { provideShared } from './shared'
+import * as path from 'path'
 
 export let providedRemotes
 
@@ -81,6 +77,10 @@ const processModule = (mod) => {
 const shareScope = {
   ${getModuleMarker('shareScope')}
 };
+
+async function __federation_import(name){
+  return import(name);
+}
 
 const initMap = {};
            
@@ -148,6 +148,19 @@ export default {
           }
         }
       }
+      for (const sharedInfo of provideShared) {
+        if (!sharedInfo[1].emitFile) {
+          sharedInfo[1].emitFile = this.emitFile({
+            type: 'chunk',
+            id: sharedInfo[0],
+            fileName: `${
+              builderInfo.assetsDir ? builderInfo.assetsDir + '/' : ''
+            }${sharedInfo[0]}.js`,
+            name: sharedInfo[0],
+            preserveSignature: 'allow-extension'
+          })
+        }
+      }
 
       if (id === '\0virtual:__federation__') {
         if (options.mode !== 'development') {
@@ -163,20 +176,18 @@ export default {
         }
       }
       if (id === '\0virtual:__rf_fn__import') {
-        for (const sharedInfo of provideShared) {
-          if (!sharedInfo[1].id) {
-            sharedInfo[1].id = (await this.resolve(id))?.id
-          }
-        }
         const moduleMapCode = provideShared
           .map(
             (sharedInfo) =>
-              `'${sharedInfo[0]}':{get:()=>import('${
+              `'${
                 sharedInfo[0]
-              }'),asMap:${getModuleMarker(
-                'asMap',
-                removeNonLetter(sharedInfo[0])
-              )}}`
+              }':{get:()=>__federation_import('./${path.basename(
+                this.getFileName(sharedInfo[1].emitFile)
+              )}'),import:${sharedInfo[1].import}${
+                sharedInfo[1].requiredVersion
+                  ? `,requiredVersion:'${sharedInfo[1].requiredVersion}'`
+                  : ''
+              }}`
           )
           .join(',')
         return code.replace(
@@ -256,7 +267,9 @@ export default {
             if (displayField.has(key))
               str += `${key}:${JSON.stringify(value)}, \n`
           })
-          str += `get: ()=> import ('${obj.id}')`
+          str += `get: ()=> __federation_import('./${path.basename(
+            this.getFileName(obj.emitFile)
+          )}')`
           res.push(`'${sharedName}':{${str}}`)
         }
       })
