@@ -1,3 +1,18 @@
+// *****************************************************************************
+// Copyright (C) 2022 Origin.js and others.
+//
+// This program and the accompanying materials are licensed under Mulan PSL v2.
+// You can use this software according to the terms and conditions of the Mulan PSL v2.
+// You may obtain a copy of Mulan PSL v2 at:
+//          http://license.coscl.org.cn/MulanPSL2
+// THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+// EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// See the Mulan PSL v2 for more details.
+//
+// SPDX-License-Identifier: MulanPSL-2.0
+// *****************************************************************************
+
 import type { UserConfig } from 'vite'
 import type {
   ConfigTypeSet,
@@ -6,6 +21,7 @@ import type {
 } from 'types'
 import { walk } from 'estree-walker'
 import MagicString from 'magic-string'
+import { readFileSync } from 'fs'
 import type { AcornNode, TransformPluginContext } from 'rollup'
 import type { Hostname, ViteDevServer } from '../../types/viteDevServer'
 import {
@@ -154,7 +170,10 @@ export {__federation_method_ensure, __federation_method_getRemote , __federation
                   optimized[arr[0]].src?.split(regExp)[0]
                 }node_modules/${arr[0]}/package.json`
                 try {
-                  arr[1].version = (await import(packageJsonPath)).version
+                  const json = JSON.parse(
+                    readFileSync(packageJsonPath, { encoding: 'utf-8' })
+                  )
+                  arr[1].version = json.version
                   arr[1].version.length
                 } catch (e) {
                   this.error(
@@ -339,7 +358,7 @@ export {__federation_method_ensure, __federation_method_getRemote , __federation
     shared: (string | ConfigTypeSet)[],
     viteVersion: string | undefined
   ): Promise<string[]> {
-    const hostname = resolveHostname(viteDevServer.config.server.host)
+    const hostname = resolveHostname(viteDevServer.config.server)
     const protocol = viteDevServer.config.server.https ? 'https' : 'http'
     const port = viteDevServer.config.server.port ?? 5000
     const regExp = new RegExp(
@@ -384,9 +403,11 @@ export {__federation_method_ensure, __federation_method_getRemote , __federation
     return res
   }
 
-  function resolveHostname(
-    optionsHost: string | boolean | undefined
-  ): Hostname {
+  function resolveHostname(serverOptions): Hostname {
+    const optionsHost = serverOptions.host
+    const optionOrigin = serverOptions.origin
+    // could be destructured
+
     let host: string | undefined
     if (
       optionsHost === undefined ||
@@ -402,14 +423,26 @@ export {__federation_method_ensure, __federation_method_getRemote , __federation
       host = optionsHost
     }
 
-    // Set host name to localhost when possible, unless the user explicitly asked for '127.0.0.1'
-    const name =
+    // Set host name to origin hostname or to localhost when possible, unless the user explicitly asked for '127.0.0.1'
+    let name
+    if (optionOrigin) {
+      // Keep hostname from url
+      if (optionOrigin.includes('://')) {
+        const [, hostname] = optionOrigin.split('://')
+        name = hostname
+      } else {
+        name = optionOrigin
+      }
+    } else if (
       (optionsHost !== '127.0.0.1' && host === '127.0.0.1') ||
       host === '0.0.0.0' ||
       host === '::' ||
       host === undefined
-        ? 'localhost'
-        : host
+    ) {
+      name = 'localhost'
+    } else {
+      name = host
+    }
 
     return { host, name }
   }

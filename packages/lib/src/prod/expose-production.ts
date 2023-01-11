@@ -1,3 +1,18 @@
+// *****************************************************************************
+// Copyright (C) 2022 Origin.js and others.
+//
+// This program and the accompanying materials are licensed under Mulan PSL v2.
+// You can use this software according to the terms and conditions of the Mulan PSL v2.
+// You may obtain a copy of Mulan PSL v2 at:
+//          http://license.coscl.org.cn/MulanPSL2
+// THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+// EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// See the Mulan PSL v2 for more details.
+//
+// SPDX-License-Identifier: MulanPSL-2.0
+// *****************************************************************************
+
 import { resolve, parse, basename, extname, relative, dirname } from 'path'
 import {
   getModuleMarker,
@@ -42,8 +57,6 @@ export function prodExposePlugin(
       ${DYNAMIC_LOADING_CSS}('${DYNAMIC_LOADING_CSS_PREFIX}${exposeFilepath}')
       return __federation_import('\${__federation_expose_${item[0]}}').then(module =>Object.keys(module).every(item => exportSet.has(item)) ? () => module.default : () => module)},`
   }
-
-  let remoteEntryChunk
 
   let viteConfigResolved: ResolvedConfig
 
@@ -118,13 +131,12 @@ export function prodExposePlugin(
 
     generateBundle(_options, bundle) {
       // replace import absolute path to chunk's fileName in remoteEntry.js
-      if (!remoteEntryChunk) {
-        for (const file in bundle) {
-          const chunk = bundle[file]
-          if (chunk?.facadeModuleId === '\0virtual:__remoteEntryHelper__') {
-            remoteEntryChunk = chunk
-            break
-          }
+      let remoteEntryChunk
+      for (const file in bundle) {
+        const chunk = bundle[file] as OutputChunk
+        if (chunk?.facadeModuleId === '\0virtual:__remoteEntryHelper__') {
+          remoteEntryChunk = chunk
+          break
         }
       }
       // placeholder replace
@@ -169,17 +181,22 @@ export function prodExposePlugin(
             }
             const depCssFiles: Set<string> = new Set()
             const addDepCss = (bundleName) => {
-              const filename = getFilename(bundleName)
-              const cssBundle = cssBundlesMap.get(filename)
-              if (cssBundle) {
-                depCssFiles.add(cssBundle.fileName)
+              const theBundle = bundle[bundleName] as any
+              if (theBundle && theBundle.viteMetadata) {
+                for (const cssFileName of theBundle.viteMetadata.importedCss.values()) {
+                  const cssBundle = cssBundlesMap.get(getFilename(cssFileName))
+                  if (cssBundle) {
+                    depCssFiles.add(cssBundle.fileName)
+                  }
+                }
               }
-              const theBundle = bundle[bundleName] as OutputChunk
               if (theBundle && theBundle.imports && theBundle.imports.length) {
                 theBundle.imports.forEach((name) => addDepCss(name))
               }
             }
+
             ;[fileBundle.fileName, ...fileBundle.imports].forEach(addDepCss)
+
             return `[${[...depCssFiles]
               .map((d) => JSON.stringify(basename(d)))
               .join(',')}]`

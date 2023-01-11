@@ -1,3 +1,18 @@
+// *****************************************************************************
+// Copyright (C) 2022 Origin.js and others.
+//
+// This program and the accompanying materials are licensed under Mulan PSL v2.
+// You can use this software according to the terms and conditions of the Mulan PSL v2.
+// You may obtain a copy of Mulan PSL v2 at:
+//          http://license.coscl.org.cn/MulanPSL2
+// THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+// EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// See the Mulan PSL v2 for more details.
+//
+// SPDX-License-Identifier: MulanPSL-2.0
+// *****************************************************************************
+
 import type { PluginHooks } from '../../types/pluginHooks'
 import {
   findDependencies,
@@ -10,7 +25,7 @@ import type { ConfigTypeSet, VitePluginFederationOptions } from 'types'
 import { walk } from 'estree-walker'
 import MagicString from 'magic-string'
 import { join, sep, resolve, basename } from 'path'
-import { readdirSync, statSync } from 'fs'
+import { readdirSync, readFileSync, statSync } from 'fs'
 import type {
   NormalizedOutputOptions,
   OutputChunk,
@@ -18,7 +33,7 @@ import type {
 } from 'rollup'
 import { sharedFileName2Prop } from './remote-production'
 const sharedFileNameReg = /^__federation_shared_.+\.js$/
-const shareFilePathReg = /__federation_shared_.+\.js$/
+const sharedFilePathReg = /__federation_shared_.+\.js$/
 
 export function prodSharedPlugin(
   options: VitePluginFederationOptions
@@ -104,14 +119,20 @@ export function prodSharedPlugin(
             )
             return {
               code: magicString.toString(),
-              map: magicString.generateMap(chunk.map)
+              map: magicString.generateMap({
+                source: chunk.map?.file,
+                hires: true
+              })
             }
           }
           if (remove) {
             //  only remove code , dont insert import {importShared} from 'xxx'
             return {
               code: magicString.toString(),
-              map: magicString.generateMap(chunk.map)
+              map: magicString.generateMap({
+                source: chunk.map?.file,
+                hires: true
+              })
             }
           }
         }
@@ -264,7 +285,10 @@ export function prodSharedPlugin(
           if (modify) {
             return {
               code: magicString.toString(),
-              map: magicString.generateMap(chunk.map)
+              map: magicString.generateMap({
+                source: chunk.map?.file,
+                hires: true
+              })
             }
           }
         }
@@ -337,6 +361,26 @@ export function prodSharedPlugin(
     },
 
     async buildStart() {
+      // Cannot emit chunks after module loading has finished, so emitFile first.
+      if (parsedOptions.prodShared.length && isRemote) {
+        this.emitFile({
+          fileName: `${
+            builderInfo.assetsDir ? builderInfo.assetsDir + '/' : ''
+          }__federation_fn_import.js`,
+          type: 'chunk',
+          id: '__federation_fn_import',
+          preserveSignature: 'strict'
+        })
+        this.emitFile({
+          fileName: `${
+            builderInfo.assetsDir ? builderInfo.assetsDir + '/' : ''
+          }__federation_lib_semver.js`,
+          type: 'chunk',
+          id: '__federation_lib_semver',
+          preserveSignature: 'strict'
+        })
+      }
+
       // forEach and collect dir
       const collectDirFn = (filePath: string, collect: string[]) => {
         const files = readdirSync(filePath)
@@ -377,7 +421,10 @@ export function prodSharedPlugin(
 
         if (isHost && !arr[1].manuallyPackagePathSetting && !arr[1].version) {
           const packageJsonPath = `${currentDir}${sep}node_modules${sep}${arr[0]}${sep}package.json`
-          arr[1].version = (await import(packageJsonPath)).version
+          const json = JSON.parse(
+            readFileSync(packageJsonPath, { encoding: 'utf-8' })
+          )
+          arr[1].version = json.version
           if (!arr[1].version) {
             this.error(
               `No description file or no version in description file (usually package.json) of ${arr[0]}(${packageJsonPath}). Add version to description file, or manually specify version in shared config.`
@@ -416,22 +463,6 @@ export function prodSharedPlugin(
         for (const prod of parsedOptions.prodShared) {
           id2Prop.set(prod[1].id, prod[1])
         }
-        this.emitFile({
-          fileName: `${
-            builderInfo.assetsDir ? builderInfo.assetsDir + '/' : ''
-          }__federation_fn_import.js`,
-          type: 'chunk',
-          id: '__federation_fn_import',
-          preserveSignature: 'strict'
-        })
-        this.emitFile({
-          fileName: `${
-            builderInfo.assetsDir ? builderInfo.assetsDir + '/' : ''
-          }__federation_lib_semver.js`,
-          type: 'chunk',
-          id: '__federation_lib_semver',
-          preserveSignature: 'strict'
-        })
       }
     },
     outputOptions: function (outputOption) {
@@ -533,11 +564,21 @@ export function prodSharedPlugin(
       if (!isRemote) {
         return
       }
+      const needRemoveShared = new Set<string>()
       for (const key in bundle) {
         const chunk = bundle[key]
         if (chunk.type === 'chunk') {
+          const removeSharedChunk =
+            !isHost &&
+            sharedFilePathReg.test(chunk.fileName) &&
+            shareName2Prop.has(chunk.name) &&
+            !shareName2Prop.get(chunk.name).generate
+          if (removeSharedChunk) {
+            needRemoveShared.add(key)
+            continue
+          }
           const importShared = chunk.imports?.some((name) =>
-            shareFilePathReg.test(name)
+            sharedFilePathReg.test(name)
           )
           if (importShared) {
             const transformedCode = transformImportFn.apply(this, [
@@ -548,6 +589,11 @@ export function prodSharedPlugin(
             chunk.code = transformedCode?.code ?? chunk.code
             chunk.map = transformedCode?.map ?? chunk.map
           }
+        }
+      }
+      if (needRemoveShared.size !== 0) {
+        for (const key of needRemoveShared) {
+          delete bundle[key]
         }
       }
     }

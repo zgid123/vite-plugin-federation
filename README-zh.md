@@ -4,6 +4,7 @@
 
 <p align="center">
   <a href="https://bestpractices.coreinfrastructure.org/projects/5752"><img src="https://bestpractices.coreinfrastructure.org/projects/5752/badge"></a>
+  <a href="https://api.securityscorecards.dev/projects/github.com/originjs/vite-plugin-federation"><img src="https://api.securityscorecards.dev/projects/github.com/originjs/vite-plugin-federation/badge"></a>
   <a href="https://github.com/originjs/vite-plugin-federation/actions/workflows/ci.yml"><img src="https://github.com/originjs/vite-plugin-federation/actions/workflows/ci.yml/badge.svg?branch=main" alt="Build Status"></a>
   <a href="https://www.npmjs.com/package/@originjs/vite-plugin-federation"><img src="https://badgen.net/npm/v/@originjs/vite-plugin-federation" alt="Version"></a>
   <a href="https://nodejs.org/en/about/releases/"><img src="https://img.shields.io/node/v/vite.svg" alt="Node Compatibility"></a>
@@ -344,6 +345,17 @@ shared: {
 }
 ```
 
+#### `generate : boolean`
+* `default: true`
+* 是否生成shared chunk文件 ，如果你确定host端有一个可以使用的shared，那么你可以在remote端设置不生成共享文件，以减少remote端的块文件的大小，该配置只在remote有效，host端无论如何都会生成自己的shared。
+```js
+shared: {
+  packageName: {
+    generate: false
+  }
+}
+``
+
 ## FAQ
 
 ### ERROR: `Top-level` await is not available in the configured target environment
@@ -387,6 +399,9 @@ export default defineConfig({
   cacheDir: "node_modules/.cacheDir",
 }
 ```
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=originjs/vite-plugin-federation&type=Date)](https://star-history.com/#originjs/vite-plugin-federation&Date)
 
 ## Wiki
 
